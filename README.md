@@ -25,7 +25,9 @@
 Portfolio Alerts App is a backend REST API that allows authenticated investors to:
 - Register and login securely
 - View a home dashboard with NSE Top 50 live stock ticker
-- Upload and manage their stock portfolio via Excel files
+- Upload portfolio via Excel or add stocks one by one via UI form
+- Validate stocks against NSE master list
+- View live portfolio valuation with profit/loss
 - Set price alerts for stocks
 - Monitor portfolio performance in real time
 
@@ -39,12 +41,13 @@ portfolio-alerts/
 │   ├── main/
 │   │   ├── java/com/ch/
 │   │   │   ├── config/
-│   │   │   │   └── SecurityConfig.java          # BCrypt + JWT Filter
+│   │   │   │   └── SecurityConfig.java
 │   │   │   ├── controller/
 │   │   │   │   ├── UserRegistrationController.java
 │   │   │   │   ├── UserLoginController.java
 │   │   │   │   ├── HomeController.java
 │   │   │   │   ├── StockMasterController.java
+│   │   │   │   ├── PortfolioController.java         ← US6
 │   │   │   │   └── PortfolioUploadController.java
 │   │   │   ├── customexception/
 │   │   │   │   ├── UserRegistrationException.java
@@ -58,6 +61,9 @@ portfolio-alerts/
 │   │   │   │   ├── StockDto.java
 │   │   │   │   ├── StockMasterDto.java
 │   │   │   │   ├── StockValidationDto.java
+│   │   │   │   ├── CreatePortfolioRequestDto.java   ← US6
+│   │   │   │   ├── PortfolioItemDto.java             ← US6
+│   │   │   │   ├── PortfolioValuationDto.java        ← US6
 │   │   │   │   ├── UploadRowDto.java
 │   │   │   │   ├── UploadPreviewDto.java
 │   │   │   │   ├── UploadConfirmDto.java
@@ -78,6 +84,7 @@ portfolio-alerts/
 │   │   │   │   ├── HomeService.java
 │   │   │   │   ├── StockService.java
 │   │   │   │   ├── StockMasterService.java
+│   │   │   │   ├── PortfolioService.java             ← US6
 │   │   │   │   └── PortfolioUploadService.java
 │   │   │   ├── serviceImpl/
 │   │   │   │   ├── UserRegistrationServiceImpl.java
@@ -85,6 +92,7 @@ portfolio-alerts/
 │   │   │   │   ├── HomeServiceImpl.java
 │   │   │   │   ├── StockServiceImpl.java
 │   │   │   │   ├── StockMasterServiceImpl.java
+│   │   │   │   ├── PortfolioServiceImpl.java         ← US6
 │   │   │   │   └── PortfolioUploadServiceImpl.java
 │   │   │   └── utils/
 │   │   │       ├── UserInputValidator.java
@@ -93,13 +101,14 @@ portfolio-alerts/
 │   │   │       └── NseTop50Symbols.java
 │   │   └── resources/
 │   │       ├── application.properties
-│   │       └── data.sql                         # NSE Top 50 seed data
+│   │       └── data.sql
 │   └── test/
 │       └── java/com/ch/
 │           ├── utils/
 │           │   └── UserInputValidatorTest.java
 │           ├── serviceImpl/
 │           │   ├── UserRegistrationServiceImplTest.java
+│           │   ├── PortfolioServiceImplTest.java      ← US6
 │           │   └── PortfolioUploadServiceImplTest.java
 │           └── controller/
 │               └── UserRegistrationControllerTest.java
@@ -115,7 +124,7 @@ portfolio-alerts/
 |---|---|
 | `users` | Registered user credentials |
 | `stocks` | NSE Top 50 stock master (seeded via data.sql) |
-| `portfolio` | User's stock holdings |
+| `portfolio` | User's stock holdings with buy price |
 
 ---
 
@@ -140,9 +149,9 @@ Authorization: Bearer <JWT_TOKEN>
 | **US3** | Home Page with NSE Ticker | ✅ Completed | `feature/US3-home-page` |
 | **US4** | Stock Master Table | ✅ Completed | `feature/US4-stock-master` |
 | **US5** | Upload Portfolio (Excel) | ✅ Completed | `feature/US5-portfolio-upload` |
-| **US6** | Alert Setting | 🔲 Pending | - |
-| **US7** | Monitor Portfolio | 🔲 Pending | - |
-| **US8** | Portfolio Modify / Delete | 🔲 Pending | - |
+| **US6** | Create Portfolio (UI Form) | ✅ Completed | `feature/US6-create-portfolio` |
+| **US7** | Alert Setting | 🔲 Pending | - |
+| **US8** | Monitor Portfolio | 🔲 Pending | - |
 | **US9** | Notifications | 🔲 Pending | - |
 | **US10** | Reports / Dashboard | 🔲 Pending | - |
 
@@ -165,8 +174,6 @@ Authorization: Bearer <JWT_TOKEN>
 
 ---
 
----
-
 ## US1 — User Registration
 
 **Goal:** Allow a new user to register securely with encrypted credentials stored in MySQL.
@@ -175,16 +182,12 @@ Authorization: Bearer <JWT_TOKEN>
 
 **Flow:**
 1. User submits Name, Username, Email, Password
-2. Backend validates email format and password rules
+2. Backend validates email format and password rules via Java 8 Predicate
 3. Password encrypted with BCrypt (strength 12)
 4. User entity persisted via JPA
 5. Success response returned
 
-**Password Rules:**
-- Minimum 8 characters
-- At least 1 uppercase, 1 lowercase
-- At least 1 digit
-- At least 1 special character from `@#$%^*-_`
+**Password Rules:** Min 8 chars, 1 uppercase, 1 lowercase, 1 digit, 1 special char (`@#$%^*-_`)
 
 **API Endpoint:**
 ```
@@ -206,11 +209,7 @@ Content-Type: application/json
 ```json
 {
   "msg": "User registered successfully.",
-  "data": {
-    "name": "John Doe",
-    "username": "johndoe",
-    "email": "john@example.com"
-  },
+  "data": { "name": "John Doe", "username": "johndoe", "email": "john@example.com" },
   "dataList": null,
   "status": "SUCCESS",
   "statusCode": 201
@@ -232,7 +231,7 @@ Content-Type: application/json
 
 ## US2 — User Login & Authentication
 
-**Goal:** Allow a registered user to login and receive a JWT token for authenticated access.
+**Goal:** Allow a registered user to login and receive a JWT token.
 
 **Actor:** Registered User
 
@@ -264,9 +263,8 @@ Content-Type: application/json
   "data": {
     "username": "johndoe",
     "email": "john@example.com",
-    "token": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqb2huZG9lIn0.xxxxx"
+    "token": "eyJhbGciOiJIUzI1NiJ9.xxxxx"
   },
-  "dataList": null,
   "status": "SUCCESS",
   "statusCode": 200
 }
@@ -277,7 +275,6 @@ Content-Type: application/json
 {
   "msg": "Invalid username or password.",
   "data": null,
-  "dataList": null,
   "status": "FAILED",
   "statusCode": 401
 }
@@ -287,15 +284,14 @@ Content-Type: application/json
 
 ## US3 — Home Page with NSE Ticker
 
-**Goal:** Authenticated user views menu options and NSE Top 50 real-time stock ticker.
+**Goal:** Authenticated user views menu options and NSE Top 50 stock ticker.
 
 **Actor:** Authenticated User
 
 **Flow:**
 1. User lands on home page after login
-2. Backend returns menu options
+2. Menu options returned
 3. NSE Top 50 prices fetched via Alpha Vantage API
-4. Ticker displayed at bottom of UI
 
 **API Endpoint:**
 ```
@@ -310,22 +306,11 @@ Authorization: Bearer <token>
   "data": {
     "welcomeMessage": "Welcome to Portfolio Alerts App!",
     "username": "johndoe",
-    "menuOptions": [
-      "Portfolio Creation / Updation",
-      "Alert Setting",
-      "Monitor Portfolio"
-    ],
+    "menuOptions": ["Portfolio Creation / Updation", "Alert Setting", "Monitor Portfolio"],
     "nseTop50Ticker": [
-      {
-        "symbol": "RELIANCE",
-        "companyName": "Reliance Industries Ltd",
-        "currentPrice": 2845.50,
-        "change": 12.30,
-        "changePercent": 0.43
-      }
+      { "symbol": "RELIANCE", "companyName": "Reliance Industries Ltd", "currentPrice": 2845.50, "change": 12.30, "changePercent": 0.43 }
     ]
   },
-  "dataList": null,
   "status": "SUCCESS",
   "statusCode": 200
 }
@@ -335,22 +320,15 @@ Authorization: Bearer <token>
 
 ## US4 — Stock Master Table
 
-**Goal:** System stores NSE Top 50 stocks (company name + ticker) as master data. Used for validation across all screens.
+**Goal:** System stores NSE Top 50 stocks as master data for validation across all screens.
 
 **Actor:** System + Authenticated User
 
-**Flow:**
-1. NSE Top 50 stocks auto-loaded via `data.sql` on startup
-2. Frontend loads full list on app initialisation
-3. User can search by ticker or company name
-4. File upload tickers cross-checked against master
-
 **API Endpoints:**
-
 ```
 GET  /api/v1/stocks              → Load all stocks
-GET  /api/v1/stocks/search?q=    → Search stocks
-POST /api/v1/stocks/validate     → Validate tickers
+GET  /api/v1/stocks/search?q=    → Search by ticker or company name
+POST /api/v1/stocks/validate     → Validate tickers from file upload
 ```
 
 **GET /api/v1/stocks Response:**
@@ -366,33 +344,14 @@ POST /api/v1/stocks/validate     → Validate tickers
 }
 ```
 
-**GET /api/v1/stocks/search?q=tata Response:**
+**POST /api/v1/stocks/validate Request / Response:**
 ```json
-{
-  "dataList": [
-    { "companyName": "Tata Consultancy Services", "tickerSymbol": "TCS", "exchange": "NSE" },
-    { "companyName": "Tata Motors Ltd", "tickerSymbol": "TATAMOTORS", "exchange": "NSE" }
-  ],
-  "status": "SUCCESS",
-  "statusCode": 200
-}
-```
-
-**POST /api/v1/stocks/validate Request:**
-```json
+// Request
 ["RELIANCE", "TCS", "FAKESTOCK"]
-```
-**Response:**
-```json
+
+// Response
 {
-  "msg": "1 invalid ticker(s) found.",
-  "data": {
-    "validTickers": ["RELIANCE", "TCS"],
-    "invalidTickers": ["FAKESTOCK"],
-    "totalCount": 3,
-    "validCount": 2,
-    "invalidCount": 1
-  },
+  "data": { "validTickers": ["RELIANCE","TCS"], "invalidTickers": ["FAKESTOCK"], "totalCount": 3, "validCount": 2, "invalidCount": 1 },
   "status": "SUCCESS",
   "statusCode": 200
 }
@@ -402,22 +361,16 @@ POST /api/v1/stocks/validate     → Validate tickers
 
 ## US5 — Upload Portfolio (Excel)
 
-**Goal:** Authenticated user uploads an Excel file with stock holdings. New stocks added, existing stocks updated with user consent.
+**Goal:** Authenticated user uploads an Excel file with stock holdings. New stocks added, existing updated with user consent.
 
 **Actor:** Authenticated User
 
 **Flow:**
-1. User uploads `.xls` / `.xlsx` file
-2. Apache POI parses the file
-3. Each ticker validated against stock master (US4)
-4. Preview shown: new / conflict / invalid
-5. User consents to update conflicts
-6. Data saved to `portfolio` table
-
-**Excel Format:**
-| Stock Symbol | Company Name | Quantity | Buy Price |
-|---|---|---|---|
-| RELIANCE | Reliance Industries | 10 | 2800.00 |
+1. Upload `.xls`/`.xlsx` file
+2. Apache POI parses file
+3. Each ticker validated against stock master
+4. Preview: new / conflict / invalid
+5. User consents → data saved
 
 **API Endpoints:**
 ```
@@ -426,52 +379,134 @@ POST /api/v1/portfolio/upload/confirm   → Step 2: confirm + save
 Authorization: Bearer <token>
 ```
 
-**Step 1 — Preview Response:**
+**Excel Format:**
+| Stock Symbol | Company Name | Quantity | Buy Price |
+|---|---|---|---|
+| RELIANCE | Reliance Industries | 10 | 2800.00 |
+
+**Step 1 Preview Response:**
 ```json
 {
-  "msg": "Preview generated. Please confirm to proceed.",
   "data": {
-    "newStocks": [
-      { "stockSymbol": "WIPRO", "companyName": "Wipro Ltd", "quantity": 20, "buyPrice": 450.0 }
-    ],
-    "conflictStocks": [
-      { "stockSymbol": "TCS", "companyName": "TCS", "quantity": 5, "buyPrice": 3900.0 }
-    ],
+    "newStocks": [{ "stockSymbol": "WIPRO", "quantity": 20, "buyPrice": 450.0 }],
+    "conflictStocks": [{ "stockSymbol": "TCS", "quantity": 5, "buyPrice": 3900.0 }],
     "invalidStocks": ["FAKESTOCK"],
-    "totalRows": 3,
-    "newCount": 1,
-    "conflictCount": 1,
-    "invalidCount": 1
+    "totalRows": 3, "newCount": 1, "conflictCount": 1, "invalidCount": 1
   },
   "status": "SUCCESS",
   "statusCode": 200
 }
 ```
 
-**Step 2 — Confirm Request:**
+**Step 2 Confirm Request / Response:**
 ```json
+// Request
 {
-  "newStocks": [
-    { "stockSymbol": "WIPRO", "companyName": "Wipro Ltd", "quantity": 20, "buyPrice": 450.0 }
-  ],
-  "updateStocks": [
-    { "stockSymbol": "TCS", "companyName": "TCS", "quantity": 5, "buyPrice": 3900.0 }
-  ]
+  "newStocks": [{ "stockSymbol": "WIPRO", "quantity": 20, "buyPrice": 450.0 }],
+  "updateStocks": [{ "stockSymbol": "TCS", "quantity": 5, "buyPrice": 3900.0 }]
 }
-```
 
-**Step 2 — Confirm Response:**
-```json
+// Response
 {
   "msg": "Upload complete. Added: 1, Updated: 1, Skipped: 0",
+  "data": { "addedCount": 1, "updatedCount": 1, "skippedCount": 0 },
+  "status": "SUCCESS",
+  "statusCode": 200
+}
+```
+
+---
+
+## US6 — Create Portfolio (UI Form)
+
+**Goal:** Authenticated user adds stocks one by one via UI form. Portfolio valuation shown with profit/loss computed using Stream API.
+
+**Actor:** Authenticated User
+
+**Flow:**
+1. User selects valid stock from master list
+2. Enters quantity and buy price
+3. Backend validates stock symbol against master table
+4. Stock saved to portfolio table
+5. Portfolio valuation returned (Stream API computes totals)
+
+**Key Concepts:** Stream API for valuation, JPA persistence, stock master validation
+
+**API Endpoints:**
+```
+POST /api/v1/portfolio              → Add one stock
+GET  /api/v1/portfolio/valuation    → Get portfolio with valuation
+Authorization: Bearer <token>
+```
+
+**POST /api/v1/portfolio Request:**
+```json
+{
+  "stockSymbol": "RELIANCE",
+  "companyName": "Reliance Industries",
+  "quantity": 10,
+  "buyPrice": 2800.00
+}
+```
+
+**POST /api/v1/portfolio Response — Success (201):**
+```json
+{
+  "msg": "Stock 'RELIANCE' added to portfolio successfully.",
   "data": {
-    "addedCount": 1,
-    "updatedCount": 1,
-    "skippedCount": 0,
-    "message": "Upload complete. Added: 1, Updated: 1, Skipped: 0"
+    "id": 1,
+    "stockSymbol": "RELIANCE",
+    "companyName": "Reliance Industries",
+    "quantity": 10,
+    "buyPrice": 2800.0,
+    "currentPrice": 2800.0,
+    "totalInvested": 28000.0,
+    "currentValue": 28000.0,
+    "profitLoss": 0.0,
+    "profitLossPercent": 0.0
+  },
+  "status": "SUCCESS",
+  "statusCode": 201
+}
+```
+
+**GET /api/v1/portfolio/valuation Response:**
+```json
+{
+  "msg": "Portfolio valuation fetched successfully.",
+  "data": {
+    "holdings": [
+      {
+        "id": 1, "stockSymbol": "RELIANCE", "companyName": "Reliance Industries",
+        "quantity": 10, "buyPrice": 2800.0, "currentPrice": 3000.0,
+        "totalInvested": 28000.0, "currentValue": 30000.0,
+        "profitLoss": 2000.0, "profitLossPercent": 7.14
+      },
+      {
+        "id": 2, "stockSymbol": "TCS", "companyName": "Tata Consultancy Services",
+        "quantity": 5, "buyPrice": 3900.0, "currentPrice": 4000.0,
+        "totalInvested": 19500.0, "currentValue": 20000.0,
+        "profitLoss": 500.0, "profitLossPercent": 2.56
+      }
+    ],
+    "totalInvested": 47500.0,
+    "totalCurrentValue": 50000.0,
+    "totalProfitLoss": 2500.0,
+    "totalProfitLossPercent": 5.26,
+    "totalStocks": 2
   },
   "status": "SUCCESS",
   "statusCode": 200
+}
+```
+
+**Response — Failure (400):**
+```json
+{
+  "msg": "Stock 'FAKESTOCK' is not valid. Please select from the stock master list.",
+  "data": null,
+  "status": "FAILED",
+  "statusCode": 400
 }
 ```
 
@@ -488,6 +523,8 @@ CREATE DATABASE investor_db;
 spring.datasource.url=jdbc:mysql://localhost:3306/investor_db
 spring.datasource.username=root
 spring.datasource.password=your_password
+spring.sql.init.mode=always
+spring.jpa.defer-datasource-initialization=true
 
 # 3. Run the application
 mvn spring-boot:run
@@ -510,7 +547,8 @@ main
 ├── feature/US2-user-login
 ├── feature/US3-home-page
 ├── feature/US4-stock-master
-└── feature/US5-portfolio-upload
+├── feature/US5-portfolio-upload
+└── feature/US6-create-portfolio
 ```
 
 ---
@@ -518,12 +556,14 @@ main
 ## 📬 Postman Collection Order
 
 ```
-1. POST /api/v1/auth/register       → Create user
-2. POST /api/v1/auth/login          → Get JWT token
-3. GET  /api/v1/home                → Home page (use token)
-4. GET  /api/v1/stocks              → Stock master list
-5. GET  /api/v1/stocks/search?q=    → Search stocks
-6. POST /api/v1/stocks/validate     → Validate tickers
-7. POST /api/v1/portfolio/upload/preview  → Upload Excel preview
-8. POST /api/v1/portfolio/upload/confirm  → Confirm upload
+1.  POST /api/v1/auth/register                  → Register user
+2.  POST /api/v1/auth/login                     → Login + get token
+3.  GET  /api/v1/home                           → Home page
+4.  GET  /api/v1/stocks                         → Load stock master
+5.  GET  /api/v1/stocks/search?q=tata           → Search stocks
+6.  POST /api/v1/stocks/validate                → Validate tickers
+7.  POST /api/v1/portfolio/upload/preview       → Upload Excel preview
+8.  POST /api/v1/portfolio/upload/confirm       → Confirm Excel upload
+9.  POST /api/v1/portfolio                      → Add stock via form
+10. GET  /api/v1/portfolio/valuation            → Portfolio valuation
 ```
