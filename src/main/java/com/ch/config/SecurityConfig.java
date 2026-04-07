@@ -1,5 +1,6 @@
-package com.ch.utils;
+package com.ch.config;
 
+import com.ch.utils.JwtAuthFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
