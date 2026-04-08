@@ -30,6 +30,9 @@ public class PortfolioEntity {
     @Column(name = "quantity", nullable = false)
     private int quantity;
 
+    @Column(name = "current_price", nullable = false)
+    private double currentPrice;
+
     @Column(name = "buy_price", nullable = false)
     private double buyPrice;
 
