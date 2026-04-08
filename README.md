@@ -79,8 +79,6 @@ portfolio-alerts/
 │   │   │   │   ├── StockEntity.java
 │   │   │   │   ├── PortfolioEntity.java
 │   │   │   │   └── AlertEntity.java                  ← US8
-│   │   │   ├── filter/
-│   │   │   │   └── JwtAuthFilter.java
 │   │   │   ├── repository/
 │   │   │   │   ├── UserRepository.java
 │   │   │   │   ├── StockRepository.java
@@ -111,6 +109,9 @@ portfolio-alerts/
 │   │   │       ├── JwtUtil.java
 │   │   │       ├── ExcelParserUtil.java
 │   │   │       └── NseTop50Symbols.java
+│   │   │       └── JwtAuthFilter.java
+
+|   |   |
 │   │   └── resources/
 │   │       ├── application.properties
 │   │       └── data.sql
