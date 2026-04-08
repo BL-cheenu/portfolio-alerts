@@ -1,6 +1,5 @@
 package com.ch.config;
 
-
 import com.ch.utils.JwtAuthFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
@@ -20,7 +19,6 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder(12);
     }
 
-    // JWT Filter — all protected endpoints
     @Bean
     public FilterRegistrationBean<JwtAuthFilter> jwtFilterRegistration() {
         FilterRegistrationBean<JwtAuthFilter> registration = new FilterRegistrationBean<>();
@@ -31,7 +29,9 @@ public class SecurityConfig {
                 "/api/v1/stocks",
                 "/api/v1/stocks/*",
                 "/api/v1/portfolio",
-                "/api/v1/portfolio/*"
+                "/api/v1/portfolio/*",
+                "/api/v1/alerts",
+                "/api/v1/alerts/*"
         );
         registration.setOrder(1);
         return registration;
