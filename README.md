@@ -28,6 +28,7 @@ Portfolio Alerts App is a backend REST API that allows authenticated investors t
 - Upload portfolio via Excel or add stocks one by one via UI form
 - Validate stocks against NSE master list
 - View live portfolio valuation with profit/loss
+- Update or delete portfolio stocks
 - Set price alerts for stocks
 - Monitor portfolio performance in real time
 
@@ -47,8 +48,9 @@ portfolio-alerts/
 │   │   │   │   ├── UserLoginController.java
 │   │   │   │   ├── HomeController.java
 │   │   │   │   ├── StockMasterController.java
-│   │   │   │   ├── PortfolioController.java         ← US6
-│   │   │   │   └── PortfolioUploadController.java
+│   │   │   │   ├── PortfolioController.java
+│   │   │   │   ├── PortfolioUploadController.java
+│   │   │   │   └── ManagePortfolioController.java     ← US7
 │   │   │   ├── customexception/
 │   │   │   │   ├── UserRegistrationException.java
 │   │   │   │   └── UserLoginException.java
@@ -61,9 +63,10 @@ portfolio-alerts/
 │   │   │   │   ├── StockDto.java
 │   │   │   │   ├── StockMasterDto.java
 │   │   │   │   ├── StockValidationDto.java
-│   │   │   │   ├── CreatePortfolioRequestDto.java   ← US6
-│   │   │   │   ├── PortfolioItemDto.java             ← US6
-│   │   │   │   ├── PortfolioValuationDto.java        ← US6
+│   │   │   │   ├── CreatePortfolioRequestDto.java
+│   │   │   │   ├── PortfolioItemDto.java
+│   │   │   │   ├── PortfolioValuationDto.java
+│   │   │   │   ├── UpdatePortfolioRequestDto.java     ← US7
 │   │   │   │   ├── UploadRowDto.java
 │   │   │   │   ├── UploadPreviewDto.java
 │   │   │   │   ├── UploadConfirmDto.java
@@ -84,16 +87,18 @@ portfolio-alerts/
 │   │   │   │   ├── HomeService.java
 │   │   │   │   ├── StockService.java
 │   │   │   │   ├── StockMasterService.java
-│   │   │   │   ├── PortfolioService.java             ← US6
-│   │   │   │   └── PortfolioUploadService.java
+│   │   │   │   ├── PortfolioService.java
+│   │   │   │   ├── PortfolioUploadService.java
+│   │   │   │   └── ManagePortfolioService.java        ← US7
 │   │   │   ├── serviceImpl/
 │   │   │   │   ├── UserRegistrationServiceImpl.java
 │   │   │   │   ├── UserLoginServiceImpl.java
 │   │   │   │   ├── HomeServiceImpl.java
 │   │   │   │   ├── StockServiceImpl.java
 │   │   │   │   ├── StockMasterServiceImpl.java
-│   │   │   │   ├── PortfolioServiceImpl.java         ← US6
-│   │   │   │   └── PortfolioUploadServiceImpl.java
+│   │   │   │   ├── PortfolioServiceImpl.java
+│   │   │   │   ├── PortfolioUploadServiceImpl.java
+│   │   │   │   └── ManagePortfolioServiceImpl.java    ← US7
 │   │   │   └── utils/
 │   │   │       ├── UserInputValidator.java
 │   │   │       ├── JwtUtil.java
@@ -108,8 +113,9 @@ portfolio-alerts/
 │           │   └── UserInputValidatorTest.java
 │           ├── serviceImpl/
 │           │   ├── UserRegistrationServiceImplTest.java
-│           │   ├── PortfolioServiceImplTest.java      ← US6
-│           │   └── PortfolioUploadServiceImplTest.java
+│           │   ├── PortfolioServiceImplTest.java
+│           │   ├── PortfolioUploadServiceImplTest.java
+│           │   └── ManagePortfolioServiceImplTest.java ← US7
 │           └── controller/
 │               └── UserRegistrationControllerTest.java
 ├── pom.xml
@@ -150,9 +156,9 @@ Authorization: Bearer <JWT_TOKEN>
 | **US4** | Stock Master Table | ✅ Completed | `feature/US4-stock-master` |
 | **US5** | Upload Portfolio (Excel) | ✅ Completed | `feature/US5-portfolio-upload` |
 | **US6** | Create Portfolio (UI Form) | ✅ Completed | `feature/US6-create-portfolio` |
-| **US7** | Alert Setting | 🔲 Pending | - |
-| **US8** | Monitor Portfolio | 🔲 Pending | - |
-| **US9** | Notifications | 🔲 Pending | - |
+| **US7** | Manage Portfolio (Update/Delete) | ✅ Completed | `feature/US7-manage-portfolio` |
+| **US8** | Alert Setting | 🔲 Pending | - |
+| **US9** | Monitor Portfolio | 🔲 Pending | - |
 | **US10** | Reports / Dashboard | 🔲 Pending | - |
 
 ---
@@ -210,7 +216,6 @@ Content-Type: application/json
 {
   "msg": "User registered successfully.",
   "data": { "name": "John Doe", "username": "johndoe", "email": "john@example.com" },
-  "dataList": null,
   "status": "SUCCESS",
   "statusCode": 201
 }
@@ -218,13 +223,7 @@ Content-Type: application/json
 
 **Response — Failure (400):**
 ```json
-{
-  "msg": "Invalid email format.",
-  "data": null,
-  "dataList": null,
-  "status": "FAILED",
-  "statusCode": 400
-}
+{ "msg": "Invalid email format.", "status": "FAILED", "statusCode": 400 }
 ```
 
 ---
@@ -240,7 +239,6 @@ Content-Type: application/json
 2. Backend fetches user via `Optional<UserEntity>`
 3. BCrypt password verification
 4. JWT token generated (24hr expiry, HS256)
-5. Token returned in response
 
 **API Endpoint:**
 ```
@@ -250,21 +248,14 @@ Content-Type: application/json
 
 **Request:**
 ```json
-{
-  "username": "johndoe",
-  "password": "Secret@123"
-}
+{ "username": "johndoe", "password": "Secret@123" }
 ```
 
 **Response — Success (200):**
 ```json
 {
   "msg": "Login successful.",
-  "data": {
-    "username": "johndoe",
-    "email": "john@example.com",
-    "token": "eyJhbGciOiJIUzI1NiJ9.xxxxx"
-  },
+  "data": { "username": "johndoe", "email": "john@example.com", "token": "eyJhbGciOiJIUzI1NiJ9.xxxxx" },
   "status": "SUCCESS",
   "statusCode": 200
 }
@@ -272,12 +263,7 @@ Content-Type: application/json
 
 **Response — Failure (401):**
 ```json
-{
-  "msg": "Invalid username or password.",
-  "data": null,
-  "status": "FAILED",
-  "statusCode": 401
-}
+{ "msg": "Invalid username or password.", "status": "FAILED", "statusCode": 401 }
 ```
 
 ---
@@ -287,11 +273,6 @@ Content-Type: application/json
 **Goal:** Authenticated user views menu options and NSE Top 50 stock ticker.
 
 **Actor:** Authenticated User
-
-**Flow:**
-1. User lands on home page after login
-2. Menu options returned
-3. NSE Top 50 prices fetched via Alpha Vantage API
 
 **API Endpoint:**
 ```
@@ -322,13 +303,11 @@ Authorization: Bearer <token>
 
 **Goal:** System stores NSE Top 50 stocks as master data for validation across all screens.
 
-**Actor:** System + Authenticated User
-
 **API Endpoints:**
 ```
 GET  /api/v1/stocks              → Load all stocks
 GET  /api/v1/stocks/search?q=    → Search by ticker or company name
-POST /api/v1/stocks/validate     → Validate tickers from file upload
+POST /api/v1/stocks/validate     → Validate tickers
 ```
 
 **GET /api/v1/stocks Response:**
@@ -336,15 +315,14 @@ POST /api/v1/stocks/validate     → Validate tickers from file upload
 {
   "msg": "Stocks fetched successfully.",
   "dataList": [
-    { "id": 1, "companyName": "Reliance Industries Ltd", "tickerSymbol": "RELIANCE", "exchange": "NSE" },
-    { "id": 2, "companyName": "Tata Consultancy Services", "tickerSymbol": "TCS", "exchange": "NSE" }
+    { "id": 1, "companyName": "Reliance Industries Ltd", "tickerSymbol": "RELIANCE", "exchange": "NSE" }
   ],
   "status": "SUCCESS",
   "statusCode": 200
 }
 ```
 
-**POST /api/v1/stocks/validate Request / Response:**
+**POST /api/v1/stocks/validate:**
 ```json
 // Request
 ["RELIANCE", "TCS", "FAKESTOCK"]
@@ -361,16 +339,9 @@ POST /api/v1/stocks/validate     → Validate tickers from file upload
 
 ## US5 — Upload Portfolio (Excel)
 
-**Goal:** Authenticated user uploads an Excel file with stock holdings. New stocks added, existing updated with user consent.
+**Goal:** Authenticated user uploads an Excel file with stock holdings.
 
-**Actor:** Authenticated User
-
-**Flow:**
-1. Upload `.xls`/`.xlsx` file
-2. Apache POI parses file
-3. Each ticker validated against stock master
-4. Preview: new / conflict / invalid
-5. User consents → data saved
+**Flow:** Upload → Parse (Apache POI) → Validate → Preview → User consent → Save
 
 **API Endpoints:**
 ```
@@ -384,7 +355,7 @@ Authorization: Bearer <token>
 |---|---|---|---|
 | RELIANCE | Reliance Industries | 10 | 2800.00 |
 
-**Step 1 Preview Response:**
+**Preview Response:**
 ```json
 {
   "data": {
@@ -393,44 +364,29 @@ Authorization: Bearer <token>
     "invalidStocks": ["FAKESTOCK"],
     "totalRows": 3, "newCount": 1, "conflictCount": 1, "invalidCount": 1
   },
-  "status": "SUCCESS",
-  "statusCode": 200
+  "status": "SUCCESS"
 }
 ```
 
-**Step 2 Confirm Request / Response:**
+**Confirm Request / Response:**
 ```json
 // Request
-{
-  "newStocks": [{ "stockSymbol": "WIPRO", "quantity": 20, "buyPrice": 450.0 }],
-  "updateStocks": [{ "stockSymbol": "TCS", "quantity": 5, "buyPrice": 3900.0 }]
-}
+{ "newStocks": [{ "stockSymbol": "WIPRO", "quantity": 20, "buyPrice": 450.0 }],
+  "updateStocks": [{ "stockSymbol": "TCS", "quantity": 5, "buyPrice": 3900.0 }] }
 
 // Response
-{
-  "msg": "Upload complete. Added: 1, Updated: 1, Skipped: 0",
+{ "msg": "Upload complete. Added: 1, Updated: 1, Skipped: 0",
   "data": { "addedCount": 1, "updatedCount": 1, "skippedCount": 0 },
-  "status": "SUCCESS",
-  "statusCode": 200
-}
+  "status": "SUCCESS", "statusCode": 200 }
 ```
 
 ---
 
 ## US6 — Create Portfolio (UI Form)
 
-**Goal:** Authenticated user adds stocks one by one via UI form. Portfolio valuation shown with profit/loss computed using Stream API.
+**Goal:** Authenticated user adds stocks one by one via UI form. Valuation computed via Stream API.
 
-**Actor:** Authenticated User
-
-**Flow:**
-1. User selects valid stock from master list
-2. Enters quantity and buy price
-3. Backend validates stock symbol against master table
-4. Stock saved to portfolio table
-5. Portfolio valuation returned (Stream API computes totals)
-
-**Key Concepts:** Stream API for valuation, JPA persistence, stock master validation
+**Key Concepts:** Stream API, JPA persistence, stock master validation
 
 **API Endpoints:**
 ```
@@ -441,30 +397,15 @@ Authorization: Bearer <token>
 
 **POST /api/v1/portfolio Request:**
 ```json
-{
-  "stockSymbol": "RELIANCE",
-  "companyName": "Reliance Industries",
-  "quantity": 10,
-  "buyPrice": 2800.00
-}
+{ "stockSymbol": "RELIANCE", "companyName": "Reliance Industries", "quantity": 10, "buyPrice": 2800.00 }
 ```
 
-**POST /api/v1/portfolio Response — Success (201):**
+**POST Response — Success (201):**
 ```json
 {
   "msg": "Stock 'RELIANCE' added to portfolio successfully.",
-  "data": {
-    "id": 1,
-    "stockSymbol": "RELIANCE",
-    "companyName": "Reliance Industries",
-    "quantity": 10,
-    "buyPrice": 2800.0,
-    "currentPrice": 2800.0,
-    "totalInvested": 28000.0,
-    "currentValue": 28000.0,
-    "profitLoss": 0.0,
-    "profitLossPercent": 0.0
-  },
+  "data": { "id": 1, "stockSymbol": "RELIANCE", "quantity": 10, "buyPrice": 2800.0,
+            "totalInvested": 28000.0, "currentValue": 28000.0, "profitLoss": 0.0, "profitLossPercent": 0.0 },
   "status": "SUCCESS",
   "statusCode": 201
 }
@@ -473,41 +414,91 @@ Authorization: Bearer <token>
 **GET /api/v1/portfolio/valuation Response:**
 ```json
 {
-  "msg": "Portfolio valuation fetched successfully.",
   "data": {
     "holdings": [
-      {
-        "id": 1, "stockSymbol": "RELIANCE", "companyName": "Reliance Industries",
-        "quantity": 10, "buyPrice": 2800.0, "currentPrice": 3000.0,
-        "totalInvested": 28000.0, "currentValue": 30000.0,
-        "profitLoss": 2000.0, "profitLossPercent": 7.14
-      },
-      {
-        "id": 2, "stockSymbol": "TCS", "companyName": "Tata Consultancy Services",
-        "quantity": 5, "buyPrice": 3900.0, "currentPrice": 4000.0,
-        "totalInvested": 19500.0, "currentValue": 20000.0,
-        "profitLoss": 500.0, "profitLossPercent": 2.56
-      }
+      { "stockSymbol": "RELIANCE", "quantity": 10, "buyPrice": 2800.0, "currentPrice": 3000.0,
+        "totalInvested": 28000.0, "currentValue": 30000.0, "profitLoss": 2000.0, "profitLossPercent": 7.14 }
     ],
-    "totalInvested": 47500.0,
-    "totalCurrentValue": 50000.0,
-    "totalProfitLoss": 2500.0,
-    "totalProfitLossPercent": 5.26,
-    "totalStocks": 2
+    "totalInvested": 28000.0, "totalCurrentValue": 30000.0,
+    "totalProfitLoss": 2000.0, "totalProfitLossPercent": 7.14, "totalStocks": 1
   },
-  "status": "SUCCESS",
-  "statusCode": 200
+  "status": "SUCCESS", "statusCode": 200
 }
 ```
 
-**Response — Failure (400):**
+---
+
+## US7 — Manage Portfolio (Update / Delete)
+
+**Goal:** Authenticated user views, updates, and deletes portfolio stocks with `@Transactional` rollback support.
+
+**Actor:** Authenticated User
+
+**Flow:**
+1. View full portfolio with valuation
+2. Update quantity or buy price of a stock (PUT)
+3. Delete one stock
+4. Delete all stocks
+
+**Key Concepts:** `@Transactional(rollbackFor = Exception.class)`, `PUT` HTTP method, Stream API
+
+**API Endpoints:**
+```
+GET    /api/v1/portfolio        → View full portfolio
+PUT    /api/v1/portfolio/{id}   → Update one stock
+DELETE /api/v1/portfolio/{id}   → Delete one stock
+DELETE /api/v1/portfolio        → Delete all stocks
+Authorization: Bearer <token>
+```
+
+**GET /api/v1/portfolio Response:**
 ```json
 {
-  "msg": "Stock 'FAKESTOCK' is not valid. Please select from the stock master list.",
-  "data": null,
-  "status": "FAILED",
-  "statusCode": 400
+  "msg": "Portfolio fetched successfully.",
+  "data": {
+    "holdings": [
+      { "id": 1, "stockSymbol": "RELIANCE", "quantity": 10, "buyPrice": 2800.0,
+        "currentPrice": 3000.0, "totalInvested": 28000.0, "currentValue": 30000.0,
+        "profitLoss": 2000.0, "profitLossPercent": 7.14 }
+    ],
+    "totalInvested": 28000.0, "totalCurrentValue": 30000.0,
+    "totalProfitLoss": 2000.0, "totalProfitLossPercent": 7.14, "totalStocks": 1
+  },
+  "status": "SUCCESS", "statusCode": 200
 }
+```
+
+**PUT /api/v1/portfolio/1 Request:**
+```json
+{ "quantity": 20, "buyPrice": 2500.00 }
+```
+
+**PUT Response — Success (200):**
+```json
+{
+  "msg": "Stock 'RELIANCE' updated successfully.",
+  "data": { "id": 1, "stockSymbol": "RELIANCE", "quantity": 20, "buyPrice": 2500.0,
+            "totalInvested": 50000.0, "currentValue": 60000.0,
+            "profitLoss": 10000.0, "profitLossPercent": 20.0 },
+  "status": "SUCCESS", "statusCode": 200
+}
+```
+
+**DELETE /api/v1/portfolio/1 Response:**
+```json
+{ "msg": "Stock 'RELIANCE' deleted successfully.", "status": "SUCCESS", "statusCode": 200 }
+```
+
+**DELETE /api/v1/portfolio (all) Response:**
+```json
+{ "msg": "All 3 stocks deleted successfully.", "status": "SUCCESS", "statusCode": 200 }
+```
+
+**Failure Responses:**
+```json
+{ "msg": "Portfolio record not found.", "status": "FAILED", "statusCode": 400 }
+{ "msg": "Provide at least quantity or buy price to update.", "status": "FAILED", "statusCode": 400 }
+{ "msg": "No portfolio records found to delete.", "status": "FAILED", "statusCode": 400 }
 ```
 
 ---
@@ -548,7 +539,8 @@ main
 ├── feature/US3-home-page
 ├── feature/US4-stock-master
 ├── feature/US5-portfolio-upload
-└── feature/US6-create-portfolio
+├── feature/US6-create-portfolio
+└── feature/US7-manage-portfolio
 ```
 
 ---
@@ -556,14 +548,18 @@ main
 ## 📬 Postman Collection Order
 
 ```
-1.  POST /api/v1/auth/register                  → Register user
-2.  POST /api/v1/auth/login                     → Login + get token
-3.  GET  /api/v1/home                           → Home page
-4.  GET  /api/v1/stocks                         → Load stock master
-5.  GET  /api/v1/stocks/search?q=tata           → Search stocks
-6.  POST /api/v1/stocks/validate                → Validate tickers
-7.  POST /api/v1/portfolio/upload/preview       → Upload Excel preview
-8.  POST /api/v1/portfolio/upload/confirm       → Confirm Excel upload
-9.  POST /api/v1/portfolio                      → Add stock via form
-10. GET  /api/v1/portfolio/valuation            → Portfolio valuation
+1.  POST   /api/v1/auth/register                 → Register user
+2.  POST   /api/v1/auth/login                    → Login + get token
+3.  GET    /api/v1/home                          → Home page
+4.  GET    /api/v1/stocks                        → Load stock master
+5.  GET    /api/v1/stocks/search?q=tata          → Search stocks
+6.  POST   /api/v1/stocks/validate               → Validate tickers
+7.  POST   /api/v1/portfolio/upload/preview      → Upload Excel preview
+8.  POST   /api/v1/portfolio/upload/confirm      → Confirm Excel upload
+9.  POST   /api/v1/portfolio                     → Add stock via form
+10. GET    /api/v1/portfolio/valuation           → Portfolio valuation
+11. GET    /api/v1/portfolio                     → View full portfolio
+12. PUT    /api/v1/portfolio/{id}                → Update one stock
+13. DELETE /api/v1/portfolio/{id}                → Delete one stock
+14. DELETE /api/v1/portfolio                     → Delete all stocks
 ```
