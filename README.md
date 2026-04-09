@@ -53,7 +53,7 @@ portfolio-alerts/
 │   │   │   │   ├── PortfolioUploadController.java
 │   │   │   │   ├── ManagePortfolioController.java
 │   │   │   │   ├── AlertController.java
-│   │   │   │   └── MonitorController.java             ← US9
+│   │   │   │   └── MonitorController.java            
 │   │   │   ├── customexception/
 │   │   │   │   ├── UserRegistrationException.java
 │   │   │   │   └── UserLoginException.java
@@ -72,8 +72,8 @@ portfolio-alerts/
 │   │   │   │   ├── UpdatePortfolioRequestDto.java
 │   │   │   │   ├── AlertRequestDto.java
 │   │   │   │   ├── AlertResponseDto.java
-│   │   │   │   ├── MonitorStockDto.java               ← US9
-│   │   │   │   ├── MonitorPortfolioDto.java           ← US9
+│   │   │   │   ├── MonitorStockDto.java               
+│   │   │   │   ├── MonitorPortfolioDto.java          
 │   │   │   │   ├── UploadRowDto.java
 │   │   │   │   ├── UploadPreviewDto.java
 │   │   │   │   ├── UploadConfirmDto.java
@@ -85,7 +85,7 @@ portfolio-alerts/
 │   │   │   │   └── AlertEntity.java
 │   │   │   ├── filter/
 │   │   │   │   └── JwtAuthFilter.java
-│   │   │   ├── kafka/                                 ← US9
+│   │   │   ├── kafka/                                
 │   │   │   │   ├── StockPriceMessage.java
 │   │   │   │   ├── StockPriceCache.java
 │   │   │   │   ├── StockPriceProducer.java
@@ -106,7 +106,7 @@ portfolio-alerts/
 │   │   │   │   ├── PortfolioUploadService.java
 │   │   │   │   ├── ManagePortfolioService.java
 │   │   │   │   ├── AlertService.java
-│   │   │   │   └── MonitorService.java                ← US9
+│   │   │   │   └── MonitorService.java              
 │   │   │   ├── serviceImpl/
 │   │   │   │   ├── UserRegistrationServiceImpl.java
 │   │   │   │   ├── UserLoginServiceImpl.java
@@ -117,14 +117,14 @@ portfolio-alerts/
 │   │   │   │   ├── PortfolioUploadServiceImpl.java
 │   │   │   │   ├── ManagePortfolioServiceImpl.java
 │   │   │   │   ├── AlertServiceImpl.java
-│   │   │   │   └── MonitorServiceImpl.java            ← US9
+│   │   │   │   └── MonitorServiceImpl.java          
 │   │   │   └── utils/
 │   │   │       ├── UserInputValidator.java
 │   │   │       ├── JwtUtil.java
 │   │   │       ├── ExcelParserUtil.java
 │   │   │       └── NseTop50Symbols.java
 │   │   └── resources/
-│   │       ├── application.properties                 ← Kafka config added
+│   │       ├── application.properties                
 │   │       └── data.sql
 │   └── test/
 │       └── java/com/ch/
@@ -135,7 +135,7 @@ portfolio-alerts/
 │           │   ├── PortfolioUploadServiceImplTest.java
 │           │   ├── ManagePortfolioServiceImplTest.java
 │           │   ├── AlertServiceImplTest.java
-│           │   └── MonitorServiceImplTest.java        ← US9
+│           │   └── MonitorServiceImplTest.java       
 │           └── controller/
 │               └── UserRegistrationControllerTest.java
 ├── pom.xml
