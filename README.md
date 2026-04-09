@@ -1,6 +1,6 @@
 # 📈 Portfolio Alerts App — Backend
 
-> A Spring Boot REST API for an investment portfolio management system with real-time stock monitoring and alert capabilities.
+> A Spring Boot REST API for an investment portfolio management system with real-time stock monitoring and Kafka-powered alert capabilities.
 
 ---
 
@@ -16,6 +16,7 @@
 | **Framework** | Spring Boot 4.0.5 |
 | **Database** | MySQL |
 | **Authentication** | JWT (HS256) |
+| **Message Queue** | Apache Kafka |
 | **Build Tool** | Maven |
 
 ---
@@ -30,7 +31,7 @@ Portfolio Alerts App is a backend REST API that allows authenticated investors t
 - View live portfolio valuation with profit/loss
 - Manage portfolio — update quantity/price, delete one or all stocks
 - Set upper and lower % threshold alerts for stocks
-- Monitor portfolio performance in real time
+- Monitor portfolio in real-time using Kafka + Stream API with threshold breach detection
 
 ---
 
@@ -51,7 +52,8 @@ portfolio-alerts/
 │   │   │   │   ├── PortfolioController.java
 │   │   │   │   ├── PortfolioUploadController.java
 │   │   │   │   ├── ManagePortfolioController.java
-│   │   │   │   └── AlertController.java              ← US8
+│   │   │   │   ├── AlertController.java
+│   │   │   │   └── MonitorController.java             ← US9
 │   │   │   ├── customexception/
 │   │   │   │   ├── UserRegistrationException.java
 │   │   │   │   └── UserLoginException.java
@@ -68,8 +70,10 @@ portfolio-alerts/
 │   │   │   │   ├── PortfolioItemDto.java
 │   │   │   │   ├── PortfolioValuationDto.java
 │   │   │   │   ├── UpdatePortfolioRequestDto.java
-│   │   │   │   ├── AlertRequestDto.java              ← US8
-│   │   │   │   ├── AlertResponseDto.java             ← US8
+│   │   │   │   ├── AlertRequestDto.java
+│   │   │   │   ├── AlertResponseDto.java
+│   │   │   │   ├── MonitorStockDto.java               ← US9
+│   │   │   │   ├── MonitorPortfolioDto.java           ← US9
 │   │   │   │   ├── UploadRowDto.java
 │   │   │   │   ├── UploadPreviewDto.java
 │   │   │   │   ├── UploadConfirmDto.java
@@ -78,12 +82,20 @@ portfolio-alerts/
 │   │   │   │   ├── UserEntity.java
 │   │   │   │   ├── StockEntity.java
 │   │   │   │   ├── PortfolioEntity.java
-│   │   │   │   └── AlertEntity.java                  ← US8
+│   │   │   │   └── AlertEntity.java
+│   │   │   ├── filter/
+│   │   │   │   └── JwtAuthFilter.java
+│   │   │   ├── kafka/                                 ← US9
+│   │   │   │   ├── StockPriceMessage.java
+│   │   │   │   ├── StockPriceCache.java
+│   │   │   │   ├── StockPriceProducer.java
+│   │   │   │   ├── StockPriceConsumer.java
+│   │   │   │   └── StockPriceScheduler.java
 │   │   │   ├── repository/
 │   │   │   │   ├── UserRepository.java
 │   │   │   │   ├── StockRepository.java
 │   │   │   │   ├── PortfolioRepository.java
-│   │   │   │   └── AlertRepository.java              ← US8
+│   │   │   │   └── AlertRepository.java
 │   │   │   ├── service/
 │   │   │   │   ├── UserRegistrationService.java
 │   │   │   │   ├── UserLoginService.java
@@ -93,7 +105,8 @@ portfolio-alerts/
 │   │   │   │   ├── PortfolioService.java
 │   │   │   │   ├── PortfolioUploadService.java
 │   │   │   │   ├── ManagePortfolioService.java
-│   │   │   │   └── AlertService.java                 ← US8
+│   │   │   │   ├── AlertService.java
+│   │   │   │   └── MonitorService.java                ← US9
 │   │   │   ├── serviceImpl/
 │   │   │   │   ├── UserRegistrationServiceImpl.java
 │   │   │   │   ├── UserLoginServiceImpl.java
@@ -103,17 +116,15 @@ portfolio-alerts/
 │   │   │   │   ├── PortfolioServiceImpl.java
 │   │   │   │   ├── PortfolioUploadServiceImpl.java
 │   │   │   │   ├── ManagePortfolioServiceImpl.java
-│   │   │   │   └── AlertServiceImpl.java             ← US8
+│   │   │   │   ├── AlertServiceImpl.java
+│   │   │   │   └── MonitorServiceImpl.java            ← US9
 │   │   │   └── utils/
 │   │   │       ├── UserInputValidator.java
 │   │   │       ├── JwtUtil.java
 │   │   │       ├── ExcelParserUtil.java
 │   │   │       └── NseTop50Symbols.java
-│   │   │       └── JwtAuthFilter.java
-
-|   |   |
 │   │   └── resources/
-│   │       ├── application.properties
+│   │       ├── application.properties                 ← Kafka config added
 │   │       └── data.sql
 │   └── test/
 │       └── java/com/ch/
@@ -123,7 +134,8 @@ portfolio-alerts/
 │           │   ├── PortfolioServiceImplTest.java
 │           │   ├── PortfolioUploadServiceImplTest.java
 │           │   ├── ManagePortfolioServiceImplTest.java
-│           │   └── AlertServiceImplTest.java          ← US8
+│           │   ├── AlertServiceImplTest.java
+│           │   └── MonitorServiceImplTest.java        ← US9
 │           └── controller/
 │               └── UserRegistrationControllerTest.java
 ├── pom.xml
@@ -148,10 +160,6 @@ portfolio-alerts/
 ```
 Register → Login → Get JWT Token → Use Token in Authorization Header
 ```
-All endpoints except `/api/v1/auth/**` require:
-```
-Authorization: Bearer <JWT_TOKEN>
-```
 
 ---
 
@@ -167,7 +175,7 @@ Authorization: Bearer <JWT_TOKEN>
 | **US6** | Create Portfolio (UI Form) | ✅ Completed | `feature/US6-create-portfolio` |
 | **US7** | Manage Portfolio (Update/Delete) | ✅ Completed | `feature/US7-manage-portfolio` |
 | **US8** | Alert Threshold Setting | ✅ Completed | `feature/US8-alert-threshold` |
-| **US9** | Monitor Portfolio | 🔲 Pending | - |
+| **US9** | Real-time Portfolio Monitor | ✅ Completed | `feature/US9-realtime-monitor` |
 | **US10** | Reports / Dashboard | 🔲 Pending | - |
 
 ---
@@ -182,6 +190,7 @@ Authorization: Bearer <JWT_TOKEN>
 | MySQL Connector | - | Database driver |
 | JJWT | 0.11.5 | JWT token |
 | Apache POI | 5.2.5 | Excel parsing |
+| Spring Kafka | - | Message queue |
 | Lombok | - | Boilerplate reduction |
 | JUnit 5 | 5.10.1 | Unit testing |
 | Mockito | 5.8.0 | Mocking |
@@ -190,16 +199,6 @@ Authorization: Bearer <JWT_TOKEN>
 ---
 
 ## US1 — User Registration
-
-**Goal:** Allow a new user to register securely with encrypted credentials stored in MySQL.
-
-**Actor:** End User (Investor)
-
-**Flow:**
-1. User submits Name, Username, Email, Password
-2. Validated via Java 8 Predicate
-3. Password encrypted with BCrypt (strength 12)
-4. Persisted via JPA
 
 **API:** `POST /api/v1/auth/register`
 
@@ -211,18 +210,10 @@ Authorization: Bearer <JWT_TOKEN>
 ```json
 { "msg": "User registered successfully.", "data": { "name": "John Doe", "username": "johndoe", "email": "john@example.com" }, "status": "SUCCESS", "statusCode": 201 }
 ```
-**Failure (400):**
-```json
-{ "msg": "Invalid email format.", "status": "FAILED", "statusCode": 400 }
-```
 
 ---
 
 ## US2 — User Login & Authentication
-
-**Goal:** Allow a registered user to login and receive a JWT token.
-
-**Actor:** Registered User
 
 **API:** `POST /api/v1/auth/login`
 
@@ -234,37 +225,21 @@ Authorization: Bearer <JWT_TOKEN>
 ```json
 { "msg": "Login successful.", "data": { "username": "johndoe", "email": "john@example.com", "token": "eyJhbGciOiJIUzI1NiJ9.xxxxx" }, "status": "SUCCESS", "statusCode": 200 }
 ```
-**Failure (401):**
-```json
-{ "msg": "Invalid username or password.", "status": "FAILED", "statusCode": 401 }
-```
 
 ---
 
 ## US3 — Home Page with NSE Ticker
 
-**Goal:** Authenticated user views menu options and NSE Top 50 ticker.
-
 **API:** `GET /api/v1/home`
 
 **Response (200):**
 ```json
-{
-  "data": {
-    "welcomeMessage": "Welcome to Portfolio Alerts App!",
-    "username": "johndoe",
-    "menuOptions": ["Portfolio Creation / Updation", "Alert Setting", "Monitor Portfolio"],
-    "nseTop50Ticker": [{ "symbol": "RELIANCE", "currentPrice": 2845.50, "change": 12.30, "changePercent": 0.43 }]
-  },
-  "status": "SUCCESS", "statusCode": 200
-}
+{ "data": { "welcomeMessage": "Welcome to Portfolio Alerts App!", "username": "johndoe", "menuOptions": ["Portfolio Creation / Updation", "Alert Setting", "Monitor Portfolio"], "nseTop50Ticker": [{ "symbol": "RELIANCE", "currentPrice": 2845.50, "change": 12.30, "changePercent": 0.43 }] }, "status": "SUCCESS" }
 ```
 
 ---
 
 ## US4 — Stock Master Table
-
-**Goal:** NSE Top 50 stocks stored as master data for validation.
 
 **APIs:**
 ```
@@ -273,19 +248,9 @@ GET  /api/v1/stocks/search?q=tata
 POST /api/v1/stocks/validate
 ```
 
-**Validate Request/Response:**
-```json
-// Request
-["RELIANCE", "TCS", "FAKESTOCK"]
-// Response
-{ "data": { "validTickers": ["RELIANCE","TCS"], "invalidTickers": ["FAKESTOCK"], "totalCount": 3, "validCount": 2, "invalidCount": 1 }, "status": "SUCCESS" }
-```
-
 ---
 
 ## US5 — Upload Portfolio (Excel)
-
-**Goal:** Upload Excel file with stock holdings — new added, existing updated with consent.
 
 **APIs:**
 ```
@@ -293,23 +258,9 @@ POST /api/v1/portfolio/upload/preview
 POST /api/v1/portfolio/upload/confirm
 ```
 
-**Excel Format:** `Stock Symbol | Company Name | Quantity | Buy Price`
-
-**Preview Response:**
-```json
-{ "data": { "newStocks": [{ "stockSymbol": "WIPRO", "quantity": 20, "buyPrice": 450.0 }], "conflictStocks": [{ "stockSymbol": "TCS", "quantity": 5, "buyPrice": 3900.0 }], "invalidStocks": ["FAKESTOCK"], "newCount": 1, "conflictCount": 1, "invalidCount": 1 }, "status": "SUCCESS" }
-```
-
-**Confirm Request:**
-```json
-{ "newStocks": [{ "stockSymbol": "WIPRO", "quantity": 20, "buyPrice": 450.0 }], "updateStocks": [{ "stockSymbol": "TCS", "quantity": 5, "buyPrice": 3900.0 }] }
-```
-
 ---
 
 ## US6 — Create Portfolio (UI Form)
-
-**Goal:** Add stocks one by one via form with live valuation using Stream API.
 
 **APIs:**
 ```
@@ -322,22 +273,9 @@ GET  /api/v1/portfolio/valuation
 { "stockSymbol": "RELIANCE", "companyName": "Reliance Industries", "quantity": 10, "buyPrice": 2800.00 }
 ```
 
-**Valuation Response:**
-```json
-{
-  "data": {
-    "holdings": [{ "stockSymbol": "RELIANCE", "quantity": 10, "buyPrice": 2800.0, "currentPrice": 3000.0, "totalInvested": 28000.0, "currentValue": 30000.0, "profitLoss": 2000.0, "profitLossPercent": 7.14 }],
-    "totalInvested": 28000.0, "totalCurrentValue": 30000.0, "totalProfitLoss": 2000.0, "totalProfitLossPercent": 7.14, "totalStocks": 1
-  },
-  "status": "SUCCESS"
-}
-```
-
 ---
 
 ## US7 — Manage Portfolio (Update / Delete)
-
-**Goal:** View, update, and delete portfolio stocks with `@Transactional` rollback.
 
 **APIs:**
 ```
@@ -352,127 +290,144 @@ DELETE /api/v1/portfolio
 { "quantity": 20, "buyPrice": 2500.00 }
 ```
 
-**Update Response (200):**
-```json
-{ "msg": "Stock 'RELIANCE' updated successfully.", "data": { "stockSymbol": "RELIANCE", "quantity": 20, "buyPrice": 2500.0, "totalInvested": 50000.0, "currentValue": 60000.0, "profitLoss": 10000.0 }, "status": "SUCCESS" }
-```
-
-**Delete One (200):**
-```json
-{ "msg": "Stock 'RELIANCE' deleted successfully.", "status": "SUCCESS", "statusCode": 200 }
-```
-
-**Delete All (200):**
-```json
-{ "msg": "All 3 stocks deleted successfully.", "status": "SUCCESS", "statusCode": 200 }
-```
-
 ---
 
 ## US8 — Alert Threshold Setting
 
-**Goal:** Authenticated user sets upper and lower % thresholds for stock price alerts.
+**APIs:**
+```
+POST   /api/v1/alerts
+PUT    /api/v1/alerts/{id}
+GET    /api/v1/alerts
+GET    /api/v1/alerts/stock/{symbol}
+DELETE /api/v1/alerts/{id}
+```
+
+**Set Alert Request:**
+```json
+{ "stockSymbol": "RELIANCE", "upperThreshold": 10.0, "lowerThreshold": 5.0 }
+```
+
+**Response (201):**
+```json
+{ "data": { "stockSymbol": "RELIANCE", "upperThreshold": 10.0, "lowerThreshold": 5.0, "buyPrice": 2800.0, "upperAlertPrice": 3080.0, "lowerAlertPrice": 2660.0, "isActive": true }, "status": "SUCCESS" }
+```
+
+---
+
+## US9 — Real-time Portfolio Monitor
+
+**Goal:** Authenticated user sees live portfolio gain/loss per stock and overall, with threshold breach indicators powered by Kafka.
 
 **Actor:** Authenticated User
 
 **Flow:**
-1. User selects a stock and sets upper % and lower % threshold
-2. Backend validates stock and saves thresholds
-3. Alert prices calculated: `buyPrice ± (buyPrice × threshold%)`
-4. User can update or delete thresholds
+1. Scheduler fetches live prices from Alpha Vantage every 60s
+2. Prices published to Kafka `stock-prices` topic
+3. Kafka consumer updates in-memory `StockPriceCache`
+4. Monitor endpoint reads from cache
+5. Stream API computes per-stock and overall gain/loss
+6. Threshold breach checked against US8 alert settings
 
-**Alert Price Formula:**
+**Key Concepts:**
+- Apache Kafka for real-time price streaming
+- `ConcurrentHashMap` cache for thread-safe price storage
+- Stream API for valuation computation
+- `@Scheduled` for periodic price fetching
+- Threshold breach detection (UPPER / LOWER / NORMAL)
+
+**Kafka Flow:**
 ```
-upperAlertPrice = buyPrice + (buyPrice × upperThreshold / 100)
-lowerAlertPrice = buyPrice - (buyPrice × lowerThreshold / 100)
-
-Example: buyPrice=2800, upper=10%, lower=5%
-  upperAlertPrice = 2800 + 280 = 3080
-  lowerAlertPrice = 2800 - 140 = 2660
+AlphaVantage API → StockPriceScheduler → KafkaProducer
+                                              ↓
+                                     stock-prices topic
+                                              ↓
+                                     KafkaConsumer → StockPriceCache
+                                                           ↓
+                                                   MonitorServiceImpl
 ```
 
 **APIs:**
 ```
-POST   /api/v1/alerts              → Set new alert
-PUT    /api/v1/alerts/{id}         → Update threshold
-GET    /api/v1/alerts              → Get all alerts
-GET    /api/v1/alerts/stock/{sym}  → Get alert by stock
-DELETE /api/v1/alerts/{id}         → Delete alert
+GET /api/v1/monitor              → Full portfolio monitor
+GET /api/v1/monitor/{symbol}     → Single stock monitor
 Authorization: Bearer <token>
 ```
 
-**POST /api/v1/alerts Request:**
+**GET /api/v1/monitor Response (200):**
 ```json
 {
-  "stockSymbol": "RELIANCE",
-  "companyName": "Reliance Industries",
-  "upperThreshold": 10.0,
-  "lowerThreshold": 5.0
+  "msg": "Portfolio monitoring data fetched successfully.",
+  "data": {
+    "stocks": [
+      {
+        "stockSymbol": "RELIANCE",
+        "companyName": "Reliance Industries",
+        "quantity": 10,
+        "buyPrice": 2800.0,
+        "currentPrice": 3100.0,
+        "totalInvested": 28000.0,
+        "currentValue": 31000.0,
+        "gainLoss": 3000.0,
+        "gainLossPercent": 10.71,
+        "upperThreshold": 10.0,
+        "lowerThreshold": 5.0,
+        "upperAlertPrice": 3080.0,
+        "lowerAlertPrice": 2660.0,
+        "upperBreached": true,
+        "lowerBreached": false,
+        "alertStatus": "UPPER_BREACHED"
+      },
+      {
+        "stockSymbol": "TCS",
+        "companyName": "Tata Consultancy Services",
+        "quantity": 5,
+        "buyPrice": 3900.0,
+        "currentPrice": 3950.0,
+        "totalInvested": 19500.0,
+        "currentValue": 19750.0,
+        "gainLoss": 250.0,
+        "gainLossPercent": 1.28,
+        "upperThreshold": 8.0,
+        "lowerThreshold": 4.0,
+        "upperAlertPrice": 4212.0,
+        "lowerAlertPrice": 3744.0,
+        "upperBreached": false,
+        "lowerBreached": false,
+        "alertStatus": "NORMAL"
+      }
+    ],
+    "totalInvested": 47500.0,
+    "totalCurrentValue": 50750.0,
+    "totalGainLoss": 3250.0,
+    "totalGainLossPercent": 6.84,
+    "totalStocks": 2,
+    "upperBreachedCount": 1,
+    "lowerBreachedCount": 0,
+    "normalCount": 1,
+    "lastUpdated": "2025-04-09T10:30:00"
+  },
+  "status": "SUCCESS",
+  "statusCode": 200
 }
 ```
 
-**POST /api/v1/alerts Response (201):**
+**GET /api/v1/monitor/RELIANCE Response:**
 ```json
 {
-  "msg": "Alert set for 'RELIANCE' successfully.",
+  "msg": "Stock monitor data fetched.",
   "data": {
-    "id": 1,
     "stockSymbol": "RELIANCE",
-    "companyName": "Reliance Industries",
-    "upperThreshold": 10.0,
-    "lowerThreshold": 5.0,
+    "quantity": 10,
     "buyPrice": 2800.0,
-    "upperAlertPrice": 3080.0,
-    "lowerAlertPrice": 2660.0,
-    "isActive": true
-  },
-  "status": "SUCCESS",
-  "statusCode": 201
-}
-```
-
-**PUT /api/v1/alerts/1 Request:**
-```json
-{ "upperThreshold": 15.0 }
-```
-
-**PUT /api/v1/alerts/1 Response (200):**
-```json
-{
-  "msg": "Alert for 'RELIANCE' updated successfully.",
-  "data": {
-    "stockSymbol": "RELIANCE",
-    "upperThreshold": 15.0,
-    "lowerThreshold": 5.0,
-    "upperAlertPrice": 3220.0,
-    "lowerAlertPrice": 2660.0
+    "currentPrice": 3100.0,
+    "gainLoss": 3000.0,
+    "gainLossPercent": 10.71,
+    "alertStatus": "UPPER_BREACHED"
   },
   "status": "SUCCESS",
   "statusCode": 200
 }
-```
-
-**GET /api/v1/alerts Response (200):**
-```json
-{
-  "msg": "Alerts fetched successfully.",
-  "dataList": [
-    { "id": 1, "stockSymbol": "RELIANCE", "upperThreshold": 10.0, "lowerThreshold": 5.0, "buyPrice": 2800.0, "upperAlertPrice": 3080.0, "lowerAlertPrice": 2660.0, "isActive": true },
-    { "id": 2, "stockSymbol": "TCS", "upperThreshold": 8.0, "lowerThreshold": 4.0, "buyPrice": 3900.0, "upperAlertPrice": 4212.0, "lowerAlertPrice": 3744.0, "isActive": true }
-  ],
-  "status": "SUCCESS",
-  "statusCode": 200
-}
-```
-
-**DELETE /api/v1/alerts/1 Response (200):**
-```json
-{ "msg": "Alert for 'RELIANCE' deleted successfully.", "status": "SUCCESS", "statusCode": 200 }
-```
-
-**Failure Response (400):**
-```json
-{ "msg": "Upper threshold must be greater than 0%.", "status": "FAILED", "statusCode": 400 }
 ```
 
 ---
@@ -480,26 +435,32 @@ Authorization: Bearer <token>
 ## ▶️ How to Run
 
 ```bash
-# 1. Create MySQL database
+# 1. Start Kafka (Docker)
+docker-compose up -d zookeeper kafka
+
+# Or manual Kafka start
+bin/zookeeper-server-start.sh config/zookeeper.properties
+bin/kafka-server-start.sh config/server.properties
+
+# 2. Create Kafka topic
+bin/kafka-topics.sh --create --topic stock-prices --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+
+# 3. Create MySQL database
 mysql -u root -p
 CREATE DATABASE investor_db;
 
-# 2. Update application.properties
-spring.datasource.url=jdbc:mysql://localhost:3306/investor_db
-spring.datasource.username=root
+# 4. Update application.properties
 spring.datasource.password=your_password
-spring.sql.init.mode=always
-spring.jpa.defer-datasource-initialization=true
+stock.api.key=YOUR_ALPHA_VANTAGE_KEY
 
-# 3. Run
+# 5. Run application
 mvn spring-boot:run
 
-# 4. Test
+# 6. Test
 mvn test
 
-# 5. Coverage report
+# 7. Coverage
 mvn verify
-# target/site/jacoco/index.html
 ```
 
 ---
@@ -515,7 +476,8 @@ main
 ├── feature/US5-portfolio-upload
 ├── feature/US6-create-portfolio
 ├── feature/US7-manage-portfolio
-└── feature/US8-alert-threshold
+├── feature/US8-alert-threshold
+└── feature/US9-realtime-monitor
 ```
 
 ---
@@ -542,4 +504,6 @@ main
 17. GET    /api/v1/alerts                        → Get all alerts
 18. GET    /api/v1/alerts/stock/RELIANCE         → Get by stock
 19. DELETE /api/v1/alerts/{id}                   → Delete alert
+20. GET    /api/v1/monitor                       → Monitor portfolio
+21. GET    /api/v1/monitor/RELIANCE              → Monitor one stock
 ```
