@@ -31,7 +31,9 @@ public class SecurityConfig {
                 "/api/v1/portfolio",
                 "/api/v1/portfolio/*",
                 "/api/v1/alerts",
-                "/api/v1/alerts/*"
+                "/api/v1/alerts/*",
+                "/api/v1/monitor",
+                "/api/v1/monitor/*"
         );
         registration.setOrder(1);
         return registration;
