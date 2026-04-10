@@ -148,8 +148,6 @@ Authorization: Bearer <token>
   "statusCode": 400
 }
 
----
-
 ## 🌿 Git Commands
 
 ```bash
