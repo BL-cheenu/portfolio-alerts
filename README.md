@@ -147,23 +147,6 @@ Authorization: Bearer <token>
   "status": "FAILED",
   "statusCode": 400
 }
-```
-
----
-
-## 🧪 Unit Tests (9 tests)
-| Test | Coverage |
-|---|---|
-| `testSetAlert_Success` | Valid alert + price calc verified |
-| `testSetAlert_BlankSymbol` | Validation |
-| `testSetAlert_ZeroUpperThreshold` | Validation |
-| `testSetAlert_InvalidStock` | Master check |
-| `testSetAlert_DuplicateAlert` | Duplicate |
-| `testUpdateAlert_Success` | Threshold update |
-| `testUpdateAlert_NotFound` | FAILED |
-| `testGetAllAlerts_Success` | List return |
-| `testDeleteAlert_Success` | Delete |
-| `testDeleteAlert_NotFound` | FAILED |
 
 ---
 
