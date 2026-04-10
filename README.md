@@ -1,6 +1,6 @@
 # 📈 Portfolio Alerts App — Backend
 
-> A Spring Boot REST API for an investment portfolio management system with real-time stock monitoring and Kafka-powered alert capabilities.
+> A Spring Boot REST API for investment portfolio management with real-time Kafka monitoring, RabbitMQ alert processing, and email notifications.
 
 ---
 
@@ -16,22 +16,23 @@
 | **Framework** | Spring Boot 4.0.5 |
 | **Database** | MySQL |
 | **Authentication** | JWT (HS256) |
-| **Message Queue** | Apache Kafka |
+| **Message Queue** | Apache Kafka + RabbitMQ |
 | **Build Tool** | Maven |
 
 ---
 
 ## 📋 Description
 
-Portfolio Alerts App is a backend REST API that allows authenticated investors to:
-- Register and login securely
-- View a home dashboard with NSE Top 50 live stock ticker
+Portfolio Alerts App is a complete backend REST API that allows authenticated investors to:
+- Register and login securely with BCrypt + JWT
+- View NSE Top 50 live stock ticker on home page
 - Upload portfolio via Excel or add stocks one by one via UI form
 - Validate stocks against NSE master list
-- View live portfolio valuation with profit/loss
+- View live portfolio valuation with profit/loss (Stream API)
 - Manage portfolio — update quantity/price, delete one or all stocks
-- Set upper and lower % threshold alerts for stocks
-- Monitor portfolio in real-time using Kafka + Stream API with threshold breach detection
+- Set upper and lower % threshold alerts per stock
+- Monitor portfolio in real-time via Kafka price cache + threshold breach detection
+- Receive automated email alerts when stock price crosses set thresholds via RabbitMQ
 
 ---
 
@@ -39,105 +40,110 @@ Portfolio Alerts App is a backend REST API that allows authenticated investors t
 
 ```
 portfolio-alerts/
-├── src/
-│   ├── main/
-│   │   ├── java/com/ch/
-│   │   │   ├── config/
-│   │   │   │   └── SecurityConfig.java
-│   │   |   |   ├── KafkaConfig.java 
-│   │   │   ├── controller/
-│   │   │   │   ├── UserRegistrationController.java
-│   │   │   │   ├── UserLoginController.java
-│   │   │   │   ├── HomeController.java
-│   │   │   │   ├── StockMasterController.java
-│   │   │   │   ├── PortfolioController.java
-│   │   │   │   ├── PortfolioUploadController.java
-│   │   │   │   ├── ManagePortfolioController.java
-│   │   │   │   ├── AlertController.java
-│   │   │   │   └── MonitorController.java            
-│   │   │   ├── customexception/
-│   │   │   │   ├── UserRegistrationException.java
-│   │   │   │   └── UserLoginException.java
-│   │   │   ├── dto/
-│   │   │   │   ├── CommonDto.java
-│   │   │   │   ├── UserRegisterDto.java
-│   │   │   │   ├── LoginRequestDto.java
-│   │   │   │   ├── LoginResponseDto.java
-│   │   │   │   ├── HomeResponseDto.java
-│   │   │   │   ├── StockDto.java
-│   │   │   │   ├── StockMasterDto.java
-│   │   │   │   ├── StockValidationDto.java
-│   │   │   │   ├── CreatePortfolioRequestDto.java
-│   │   │   │   ├── PortfolioItemDto.java
-│   │   │   │   ├── PortfolioValuationDto.java
-│   │   │   │   ├── UpdatePortfolioRequestDto.java
-│   │   │   │   ├── AlertRequestDto.java
-│   │   │   │   ├── AlertResponseDto.java
-│   │   │   │   ├── MonitorStockDto.java               
-│   │   │   │   ├── MonitorPortfolioDto.java          
-│   │   │   │   ├── UploadRowDto.java
-│   │   │   │   ├── UploadPreviewDto.java
-│   │   │   │   ├── UploadConfirmDto.java
-│   │   │   │   └── UploadResultDto.java
-│   │   │   ├── entity/
-│   │   │   │   ├── UserEntity.java
-│   │   │   │   ├── StockEntity.java
-│   │   │   │   ├── PortfolioEntity.java
-│   │   │   │   └── AlertEntity.java
-│   │   │   ├── kafka/                                
-│   │   │   │   ├── StockPriceMessage.java
-│   │   │   │   ├── StockPriceCache.java
-│   │   │   │   ├── StockPriceProducer.java
-│   │   │   │   ├── StockPriceConsumer.java
-│   │   │   │   └── StockPriceScheduler.java
-│   │   │   ├── repository/
-│   │   │   │   ├── UserRepository.java
-│   │   │   │   ├── StockRepository.java
-│   │   │   │   ├── PortfolioRepository.java
-│   │   │   │   └── AlertRepository.java
-│   │   │   ├── service/
-│   │   │   │   ├── UserRegistrationService.java
-│   │   │   │   ├── UserLoginService.java
-│   │   │   │   ├── HomeService.java
-│   │   │   │   ├── StockService.java
-│   │   │   │   ├── StockMasterService.java
-│   │   │   │   ├── PortfolioService.java
-│   │   │   │   ├── PortfolioUploadService.java
-│   │   │   │   ├── ManagePortfolioService.java
-│   │   │   │   ├── AlertService.java
-│   │   │   │   └── MonitorService.java              
-│   │   │   ├── serviceImpl/
-│   │   │   │   ├── UserRegistrationServiceImpl.java
-│   │   │   │   ├── UserLoginServiceImpl.java
-│   │   │   │   ├── HomeServiceImpl.java
-│   │   │   │   ├── StockServiceImpl.java
-│   │   │   │   ├── StockMasterServiceImpl.java
-│   │   │   │   ├── PortfolioServiceImpl.java
-│   │   │   │   ├── PortfolioUploadServiceImpl.java
-│   │   │   │   ├── ManagePortfolioServiceImpl.java
-│   │   │   │   ├── AlertServiceImpl.java
-│   │   │   │   └── MonitorServiceImpl.java          
-│   │   │   └── utils/
-│   │   │       ├── UserInputValidator.java
-│   │   │       ├── JwtUtil.java
-│   │   │       ├── ExcelParserUtil.java
-│   │   │       └── NseTop50Symbols.java
-│   │   │       └── JwtAuthFilter.java
-│   │   └── resources/
-│   │       ├── application.properties                
-│   │       └── data.sql
-│   └── test/
-│       └── java/com/ch/
-│           ├── utils/UserInputValidatorTest.java
-│           ├── serviceImpl/
-│           │   ├── UserRegistrationServiceImplTest.java
-│           │   ├── PortfolioServiceImplTest.java
-│           │   ├── PortfolioUploadServiceImplTest.java
-│           │   ├── ManagePortfolioServiceImplTest.java
-│           │   ├── AlertServiceImplTest.java
-│           │   └── MonitorServiceImplTest.java       
-│           └── controller/
-│               └── UserRegistrationControllerTest.java
+├── src/main/java/com/ch/
+│   ├── config/
+│   │   ├── SecurityConfig.java
+│   │   ├── KafkaConfig.java              
+│   │   └── RabbitMQConfig.java           
+│   ├── controller/
+│   │   ├── UserRegistrationController.java
+│   │   ├── UserLoginController.java
+│   │   ├── HomeController.java
+│   │   ├── StockMasterController.java
+│   │   ├── PortfolioController.java
+│   │   ├── PortfolioUploadController.java
+│   │   ├── ManagePortfolioController.java
+│   │   ├── AlertController.java
+│   │   ├── MonitorController.java        
+│   │   └── AlertHistoryController.java   
+│   ├── dto/
+│   │   ├── CommonDto.java
+│   │   ├── UserRegisterDto.java
+│   │   ├── LoginRequestDto.java
+│   │   ├── LoginResponseDto.java
+│   │   ├── HomeResponseDto.java
+│   │   ├── StockDto.java
+│   │   ├── StockMasterDto.java
+│   │   ├── StockValidationDto.java
+│   │   ├── CreatePortfolioRequestDto.java
+│   │   ├── PortfolioItemDto.java
+│   │   ├── PortfolioValuationDto.java
+│   │   ├── UpdatePortfolioRequestDto.java
+│   │   ├── AlertRequestDto.java
+│   │   ├── AlertResponseDto.java
+│   │   ├── MonitorStockDto.java         
+│   │   ├── MonitorPortfolioDto.java      
+│   │   ├── AlertHistoryDto.java          
+│   │   ├── UploadRowDto.java
+│   │   ├── UploadPreviewDto.java
+│   │   ├── UploadConfirmDto.java
+│   │   └── UploadResultDto.java
+│   ├── entity/
+│   │   ├── UserEntity.java
+│   │   ├── StockEntity.java
+│   │   ├── PortfolioEntity.java
+│   │   ├── AlertEntity.java
+│   │   └── AlertHistoryEntity.java      
+│   ├── kafka/                            
+│   │   ├── StockPriceMessage.java
+│   │   ├── StockPriceCache.java
+│   │   ├── StockPriceProducer.java
+│   │   ├── StockPriceConsumer.java
+│   │   └── StockPriceScheduler.java
+│   ├── rabbitmq/                         
+│   │   ├── AlertEmailMessage.java
+│   │   ├── AlertGenerator.java
+│   │   └── AlertConsumer.java
+│   ├── repository/
+│   │   ├── UserRepository.java
+│   │   ├── StockRepository.java
+│   │   ├── PortfolioRepository.java
+│   │   ├── AlertRepository.java
+│   │   └── AlertHistoryRepository.java  
+│   ├── service/
+│   │   ├── UserRegistrationService.java
+│   │   ├── UserLoginService.java
+│   │   ├── HomeService.java
+│   │   ├── StockService.java
+│   │   ├── StockMasterService.java
+│   │   ├── PortfolioService.java
+│   │   ├── PortfolioUploadService.java
+│   │   ├── ManagePortfolioService.java
+│   │   ├── AlertService.java
+│   │   ├── MonitorService.java           
+│   │   ├── AlertEmailService.java        
+│   │   └── AlertHistoryService.java      
+│   ├── serviceImpl/
+│   │   ├── UserRegistrationServiceImpl.java
+│   │   ├── UserLoginServiceImpl.java
+│   │   ├── HomeServiceImpl.java
+│   │   ├── StockServiceImpl.java
+│   │   ├── StockMasterServiceImpl.java
+│   │   ├── PortfolioServiceImpl.java
+│   │   ├── PortfolioUploadServiceImpl.java
+│   │   ├── ManagePortfolioServiceImpl.java
+│   │   ├── AlertServiceImpl.java
+│   │   ├── MonitorServiceImpl.java       ← US9
+│   │   └── AlertHistoryServiceImpl.java  ← US10
+│   └── utils/
+│       ├── UserInputValidator.java
+│       ├── JwtUtil.java
+│       ├── ExcelParserUtil.java
+│       └── NseTop50Symbols.java
+│       └── JwtAuthFilter.java
+├── src/main/resources/
+│   ├── application.properties
+│   └── data.sql
+├── src/test/java/com/ch/
+│   ├── utils/UserInputValidatorTest.java
+│   └── serviceImpl/
+│       ├── UserRegistrationServiceImplTest.java
+│       ├── PortfolioServiceImplTest.java
+│       ├── PortfolioUploadServiceImplTest.java
+│       ├── ManagePortfolioServiceImplTest.java
+│       ├── AlertServiceImplTest.java
+│       ├── MonitorServiceImplTest.java   
+│       └── AlertGeneratorTest.java       
 ├── pom.xml
 └── README.md
 ```
@@ -149,16 +155,18 @@ portfolio-alerts/
 | Table | Description |
 |---|---|
 | `users` | Registered user credentials |
-| `stocks` | NSE Top 50 stock master (seeded via data.sql) |
-| `portfolio` | User's stock holdings with buy price |
-| `alerts` | User's stock alert thresholds (upper/lower %) |
+| `stocks` | NSE Top 50 master (seeded via data.sql) |
+| `portfolio` | User's stock holdings |
+| `alerts` | Upper/lower % threshold settings |
+| `alert_history` | All email alerts sent — for UI display |
 
 ---
 
-## 🔐 Authentication Flow
+## 🔐 Authentication
 
+All endpoints except `/api/v1/auth/**` require:
 ```
-Register → Login → Get JWT Token → Use Token in Authorization Header
+Authorization: Bearer <JWT_TOKEN>
 ```
 
 ---
@@ -176,25 +184,27 @@ Register → Login → Get JWT Token → Use Token in Authorization Header
 | **US7** | Manage Portfolio (Update/Delete) | ✅ Completed | `feature/US7-manage-portfolio` |
 | **US8** | Alert Threshold Setting | ✅ Completed | `feature/US8-alert-threshold` |
 | **US9** | Real-time Portfolio Monitor | ✅ Completed | `feature/US9-realtime-monitor` |
-| **US10** | Reports / Dashboard | 🔲 Pending | - |
+| **US10** | Send Alert Email via RabbitMQ | ✅ Completed | `feature/US10-alert-email` |
 
 ---
 
-## 📦 Tech Stack & Dependencies
+## 📦 Tech Stack
 
 | Dependency | Version | Purpose |
 |---|---|---|
 | Spring Boot | 4.0.5 | Framework |
-| Spring Data JPA | - | ORM / DB |
-| Spring Security Crypto | - | BCrypt encryption |
-| MySQL Connector | - | Database driver |
-| JJWT | 0.11.5 | JWT token |
+| Spring Data JPA | - | ORM |
+| Spring Security Crypto | - | BCrypt |
+| MySQL Connector | - | DB Driver |
+| JJWT | 0.11.5 | JWT |
 | Apache POI | 5.2.5 | Excel parsing |
-| Spring Kafka | - | Message queue |
-| Lombok | - | Boilerplate reduction |
-| JUnit 5 | 5.10.1 | Unit testing |
+| Spring Kafka | - | Real-time prices |
+| Spring AMQP (RabbitMQ) | - | Alert messaging |
+| Spring Mail | - | Email alerts |
+| Lombok | - | Boilerplate |
+| JUnit 5 | 5.10.1 | Testing |
 | Mockito | 5.8.0 | Mocking |
-| JaCoCo | 0.8.11 | Code coverage (min 80%) |
+| JaCoCo | 0.8.11 | Coverage (80%) |
 
 ---
 
@@ -258,6 +268,8 @@ POST /api/v1/portfolio/upload/preview
 POST /api/v1/portfolio/upload/confirm
 ```
 
+**Excel Format:** `Stock Symbol | Company Name | Quantity | Buy Price`
+
 ---
 
 ## US6 — Create Portfolio (UI Form)
@@ -268,14 +280,14 @@ POST /api/v1/portfolio
 GET  /api/v1/portfolio/valuation
 ```
 
-**Add Request:**
+**Request:**
 ```json
 { "stockSymbol": "RELIANCE", "companyName": "Reliance Industries", "quantity": 10, "buyPrice": 2800.00 }
 ```
 
 ---
 
-## US7 — Manage Portfolio (Update / Delete)
+## US7 — Manage Portfolio
 
 **APIs:**
 ```
@@ -283,11 +295,6 @@ GET    /api/v1/portfolio
 PUT    /api/v1/portfolio/{id}
 DELETE /api/v1/portfolio/{id}
 DELETE /api/v1/portfolio
-```
-
-**Update Request:**
-```json
-{ "quantity": 20, "buyPrice": 2500.00 }
 ```
 
 ---
@@ -303,128 +310,102 @@ GET    /api/v1/alerts/stock/{symbol}
 DELETE /api/v1/alerts/{id}
 ```
 
-**Set Alert Request:**
+**Request:**
 ```json
 { "stockSymbol": "RELIANCE", "upperThreshold": 10.0, "lowerThreshold": 5.0 }
 ```
-
-**Response (201):**
+**Response:**
 ```json
-{ "data": { "stockSymbol": "RELIANCE", "upperThreshold": 10.0, "lowerThreshold": 5.0, "buyPrice": 2800.0, "upperAlertPrice": 3080.0, "lowerAlertPrice": 2660.0, "isActive": true }, "status": "SUCCESS" }
+{ "data": { "stockSymbol": "RELIANCE", "upperThreshold": 10.0, "lowerThreshold": 5.0, "buyPrice": 2800.0, "upperAlertPrice": 3080.0, "lowerAlertPrice": 2660.0 }, "status": "SUCCESS" }
 ```
 
 ---
 
 ## US9 — Real-time Portfolio Monitor
 
-**Goal:** Authenticated user sees live portfolio gain/loss per stock and overall, with threshold breach indicators powered by Kafka.
-
-**Actor:** Authenticated User
-
-**Flow:**
-1. Scheduler fetches live prices from Alpha Vantage every 60s
-2. Prices published to Kafka `stock-prices` topic
-3. Kafka consumer updates in-memory `StockPriceCache`
-4. Monitor endpoint reads from cache
-5. Stream API computes per-stock and overall gain/loss
-6. Threshold breach checked against US8 alert settings
-
-**Key Concepts:**
-- Apache Kafka for real-time price streaming
-- `ConcurrentHashMap` cache for thread-safe price storage
-- Stream API for valuation computation
-- `@Scheduled` for periodic price fetching
-- Threshold breach detection (UPPER / LOWER / NORMAL)
-
 **Kafka Flow:**
 ```
-AlphaVantage API → StockPriceScheduler → KafkaProducer
-                                              ↓
-                                     stock-prices topic
-                                              ↓
-                                     KafkaConsumer → StockPriceCache
-                                                           ↓
-                                                   MonitorServiceImpl
+AlphaVantage → Scheduler → KafkaProducer → stock-prices topic
+                                                    ↓
+                                           KafkaConsumer → StockPriceCache
+                                                                ↓
+                                                     MonitorServiceImpl (Stream API)
 ```
 
 **APIs:**
 ```
-GET /api/v1/monitor              → Full portfolio monitor
-GET /api/v1/monitor/{symbol}     → Single stock monitor
-Authorization: Bearer <token>
+GET /api/v1/monitor
+GET /api/v1/monitor/{symbol}
 ```
 
-**GET /api/v1/monitor Response (200):**
+**Response (200):**
 ```json
 {
-  "msg": "Portfolio monitoring data fetched successfully.",
   "data": {
     "stocks": [
-      {
-        "stockSymbol": "RELIANCE",
-        "companyName": "Reliance Industries",
-        "quantity": 10,
-        "buyPrice": 2800.0,
-        "currentPrice": 3100.0,
-        "totalInvested": 28000.0,
-        "currentValue": 31000.0,
-        "gainLoss": 3000.0,
-        "gainLossPercent": 10.71,
-        "upperThreshold": 10.0,
-        "lowerThreshold": 5.0,
-        "upperAlertPrice": 3080.0,
-        "lowerAlertPrice": 2660.0,
-        "upperBreached": true,
-        "lowerBreached": false,
-        "alertStatus": "UPPER_BREACHED"
-      },
-      {
-        "stockSymbol": "TCS",
-        "companyName": "Tata Consultancy Services",
-        "quantity": 5,
-        "buyPrice": 3900.0,
-        "currentPrice": 3950.0,
-        "totalInvested": 19500.0,
-        "currentValue": 19750.0,
-        "gainLoss": 250.0,
-        "gainLossPercent": 1.28,
-        "upperThreshold": 8.0,
-        "lowerThreshold": 4.0,
-        "upperAlertPrice": 4212.0,
-        "lowerAlertPrice": 3744.0,
-        "upperBreached": false,
-        "lowerBreached": false,
-        "alertStatus": "NORMAL"
-      }
+      { "stockSymbol": "RELIANCE", "quantity": 10, "buyPrice": 2800.0, "currentPrice": 3100.0, "gainLoss": 3000.0, "gainLossPercent": 10.71, "alertStatus": "UPPER_BREACHED", "upperBreached": true, "lowerBreached": false }
     ],
-    "totalInvested": 47500.0,
-    "totalCurrentValue": 50750.0,
-    "totalGainLoss": 3250.0,
-    "totalGainLossPercent": 6.84,
-    "totalStocks": 2,
-    "upperBreachedCount": 1,
-    "lowerBreachedCount": 0,
-    "normalCount": 1,
+    "totalInvested": 28000.0, "totalCurrentValue": 31000.0,
+    "totalGainLoss": 3000.0, "totalGainLossPercent": 10.71,
+    "upperBreachedCount": 1, "lowerBreachedCount": 0, "normalCount": 0,
     "lastUpdated": "2025-04-09T10:30:00"
   },
-  "status": "SUCCESS",
-  "statusCode": 200
+  "status": "SUCCESS"
 }
 ```
 
-**GET /api/v1/monitor/RELIANCE Response:**
+---
+
+## US10 — Send Alert Email via RabbitMQ
+
+**Goal:** System sends HTML email to user when stock price crosses alert threshold.
+
+**Actor:** System (automated)
+
+**RabbitMQ Flow:**
+```
+AlertGenerator (@Scheduled 60s)
+      ↓ checks Kafka price cache vs US8 thresholds
+      ↓ if breached →
+RabbitTemplate → alert.exchange → alert.email.queue
+                                          ↓
+                                  AlertConsumer
+                                          ↓
+                              AlertEmailService (HTML email)
+                                          +
+                              AlertHistoryService (save to DB)
+                                          ↓
+                              Dead Letter Queue (on failure)
+```
+
+**Email Content:** Stock name, buy price, current price, alert price, quantity, total invested, current value, gain/loss, breach type, timestamp.
+
+**APIs for UI Alert History:**
+```
+GET /api/v1/alert-history                  → All sent alerts
+GET /api/v1/alert-history/stock/{symbol}   → By stock
+Authorization: Bearer <token>
+```
+
+**GET /api/v1/alert-history Response (200):**
 ```json
 {
-  "msg": "Stock monitor data fetched.",
-  "data": {
-    "stockSymbol": "RELIANCE",
-    "quantity": 10,
-    "buyPrice": 2800.0,
-    "currentPrice": 3100.0,
-    "gainLoss": 3000.0,
-    "gainLossPercent": 10.71,
-    "alertStatus": "UPPER_BREACHED"
-  },
+  "msg": "Alert history fetched successfully.",
+  "dataList": [
+    {
+      "id": 1,
+      "stockSymbol": "RELIANCE",
+      "companyName": "Reliance Industries",
+      "breachType": "UPPER_BREACHED",
+      "buyPrice": 2800.0,
+      "currentPrice": 3100.0,
+      "alertPrice": 3080.0,
+      "gainLoss": 3000.0,
+      "gainLossPercent": 10.71,
+      "emailSentTo": "john@example.com",
+      "triggeredAt": "2025-04-09T10:30:00"
+    }
+  ],
   "status": "SUCCESS",
   "statusCode": 200
 }
@@ -435,23 +416,20 @@ Authorization: Bearer <token>
 ## ▶️ How to Run
 
 ```bash
-# 1. Start Kafka (Docker)
-docker-compose up -d zookeeper kafka
+# 1. Start Kafka
+docker run -d --name kafka -p 9092:9092 apache/kafka:latest
 
-# Or manual Kafka start
-bin/zookeeper-server-start.sh config/zookeeper.properties
-bin/kafka-server-start.sh config/server.properties
-
-# 2. Create Kafka topic
-bin/kafka-topics.sh --create --topic stock-prices --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+# 2. Start RabbitMQ
+docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:management
 
 # 3. Create MySQL database
-mysql -u root -p
 CREATE DATABASE investor_db;
 
 # 4. Update application.properties
 spring.datasource.password=your_password
 stock.api.key=YOUR_ALPHA_VANTAGE_KEY
+spring.mail.username=your_email@gmail.com
+spring.mail.password=your_gmail_app_password
 
 # 5. Run application
 mvn spring-boot:run
@@ -459,8 +437,27 @@ mvn spring-boot:run
 # 6. Test
 mvn test
 
-# 7. Coverage
+# 7. Coverage report
 mvn verify
+# target/site/jacoco/index.html
+```
+
+---
+
+## pom.xml dependencies to add for US10
+
+```xml
+<!-- RabbitMQ -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-amqp</artifactId>
+</dependency>
+
+<!-- Spring Mail -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-mail</artifactId>
+</dependency>
 ```
 
 ---
@@ -477,7 +474,8 @@ main
 ├── feature/US6-create-portfolio
 ├── feature/US7-manage-portfolio
 ├── feature/US8-alert-threshold
-└── feature/US9-realtime-monitor
+├── feature/US9-realtime-monitor
+└── feature/US10-alert-email
 ```
 
 ---
@@ -485,25 +483,27 @@ main
 ## 📬 Postman Collection Order
 
 ```
-1.  POST   /api/v1/auth/register                 → Register
-2.  POST   /api/v1/auth/login                    → Login + token
-3.  GET    /api/v1/home                          → Home page
-4.  GET    /api/v1/stocks                        → Stock master
-5.  GET    /api/v1/stocks/search?q=tata          → Search
-6.  POST   /api/v1/stocks/validate               → Validate tickers
-7.  POST   /api/v1/portfolio/upload/preview      → Excel preview
-8.  POST   /api/v1/portfolio/upload/confirm      → Excel confirm
-9.  POST   /api/v1/portfolio                     → Add stock
-10. GET    /api/v1/portfolio/valuation           → Valuation
-11. GET    /api/v1/portfolio                     → View portfolio
-12. PUT    /api/v1/portfolio/{id}                → Update stock
-13. DELETE /api/v1/portfolio/{id}                → Delete one
-14. DELETE /api/v1/portfolio                     → Delete all
-15. POST   /api/v1/alerts                        → Set alert
-16. PUT    /api/v1/alerts/{id}                   → Update alert
-17. GET    /api/v1/alerts                        → Get all alerts
-18. GET    /api/v1/alerts/stock/RELIANCE         → Get by stock
-19. DELETE /api/v1/alerts/{id}                   → Delete alert
-20. GET    /api/v1/monitor                       → Monitor portfolio
-21. GET    /api/v1/monitor/RELIANCE              → Monitor one stock
+1.  POST   /api/v1/auth/register
+2.  POST   /api/v1/auth/login
+3.  GET    /api/v1/home
+4.  GET    /api/v1/stocks
+5.  GET    /api/v1/stocks/search?q=tata
+6.  POST   /api/v1/stocks/validate
+7.  POST   /api/v1/portfolio/upload/preview
+8.  POST   /api/v1/portfolio/upload/confirm
+9.  POST   /api/v1/portfolio
+10. GET    /api/v1/portfolio/valuation
+11. GET    /api/v1/portfolio
+12. PUT    /api/v1/portfolio/{id}
+13. DELETE /api/v1/portfolio/{id}
+14. DELETE /api/v1/portfolio
+15. POST   /api/v1/alerts
+16. PUT    /api/v1/alerts/{id}
+17. GET    /api/v1/alerts
+18. GET    /api/v1/alerts/stock/RELIANCE
+19. DELETE /api/v1/alerts/{id}
+20. GET    /api/v1/monitor
+21. GET    /api/v1/monitor/RELIANCE
+22. GET    /api/v1/alert-history
+23. GET    /api/v1/alert-history/stock/RELIANCE
 ```
