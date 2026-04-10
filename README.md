@@ -46,9 +46,6 @@ src/main/java/com/ch/
 │   └── AlertService.java
 └── serviceImpl/
     └── AlertServiceImpl.java
-
-src/test/java/com/ch/serviceImpl/
-└── AlertServiceImplTest.java
 ```
 
 ---
@@ -140,6 +137,15 @@ Authorization: Bearer <token>
 }
 ```
 
+### DELETE /api/v1/alerts/1 Response (200)
+```json
+{
+  "msg": "Alert for 'RELIANCE' deleted successfully.",
+  "status": "SUCCESS",
+  "statusCode": 200
+}
+```
+
 ### ❌ Duplicate Alert (400)
 ```json
 {
@@ -147,6 +153,18 @@ Authorization: Bearer <token>
   "status": "FAILED",
   "statusCode": 400
 }
+```
+
+### ❌ Invalid Stock (400)
+```json
+{
+  "msg": "Stock 'FAKESTOCK' is not valid.",
+  "status": "FAILED",
+  "statusCode": 400
+}
+```
+
+---
 
 ## 🌿 Git Commands
 
@@ -161,7 +179,6 @@ git commit -m "feat(US8): implement alert threshold setting
 - GET  /api/v1/alerts/stock/{sym} - get by stock
 - DELETE /api/v1/alerts/{id} - delete alert
 - Alert price calculation from buy price + threshold%
-- 9 unit tests
 
 Closes #US8"
 git push origin feature/US8-alert-threshold
