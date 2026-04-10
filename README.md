@@ -44,6 +44,7 @@ portfolio-alerts/
 │   │   ├── java/com/ch/
 │   │   │   ├── config/
 │   │   │   │   └── SecurityConfig.java
+│   │   |   |   ├── KafkaConfig.java 
 │   │   │   ├── controller/
 │   │   │   │   ├── UserRegistrationController.java
 │   │   │   │   ├── UserLoginController.java
@@ -83,8 +84,6 @@ portfolio-alerts/
 │   │   │   │   ├── StockEntity.java
 │   │   │   │   ├── PortfolioEntity.java
 │   │   │   │   └── AlertEntity.java
-│   │   │   ├── filter/
-│   │   │   │   └── JwtAuthFilter.java
 │   │   │   ├── kafka/                                
 │   │   │   │   ├── StockPriceMessage.java
 │   │   │   │   ├── StockPriceCache.java
@@ -123,6 +122,7 @@ portfolio-alerts/
 │   │   │       ├── JwtUtil.java
 │   │   │       ├── ExcelParserUtil.java
 │   │   │       └── NseTop50Symbols.java
+│   │   │       └── JwtAuthFilter.java
 │   │   └── resources/
 │   │       ├── application.properties                
 │   │       └── data.sql
