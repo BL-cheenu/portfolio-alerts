@@ -108,5 +108,3 @@ mvn test
 ```
 
 ---
-
-## Project Structure
