@@ -305,11 +305,7 @@ Authorization: Bearer <JWT_TOKEN>
     <version>5.8.0</version>
     <scope>test</scope>
 </dependency>
-<dependency>
-    <groupId>com.h2database</groupId>
-    <artifactId>h2</artifactId>
-    <scope>test</scope>
-</dependency>
+
 ```
 
 ---
